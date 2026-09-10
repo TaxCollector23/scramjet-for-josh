@@ -9,7 +9,7 @@ export const AVAILABLE_TRANSPORTS: ReadonlyArray<{
 	{ value: "libcurl", label: "Libcurl" },
 	{ value: "epoxy", label: "Epoxy" },
 ];
-const DEFAULT_WISP_URL = import.meta.env.VITE_WISP_URL;
+const DEFAULT_WISP_URL = import.meta.env.VITE_WISP_URL ?? "wss://wisp.mercurywork.shop/";
 const DEFAULT_TRANSPORT: AvailableTransports = "libcurl";
 const DEFAULT_HOME_URL = "https://google.com";
 const DEFAULT_MAX_REQUESTS = 200;
