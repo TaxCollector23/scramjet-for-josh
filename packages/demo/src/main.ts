@@ -1,5 +1,6 @@
 import LibcurlClient from "@mercuryworkshop/libcurl-transport";
 import { Controller, type Frame } from "@mercuryworkshop/scramjet-controller";
+import { defaultConfigDev } from "@mercuryworkshop/scramjet";
 
 const WISP_URL = "wss://wisp.mercurywork.shop/";
 
@@ -228,7 +229,7 @@ async function initController() {
     });
     const sw = navigator.serviceWorker.controller ?? reg.active;
     if (!sw) throw new Error("No service worker available");
-    controller = new Controller({ serviceworker: sw, transport: new LibcurlClient({ wisp: WISP_URL }) });
+    controller = new Controller({ serviceworker: sw, transport: new LibcurlClient({ wisp: WISP_URL }), scramjetConfig: defaultConfigDev });
     await controller!.wait();
     controllerReady = true;
     statusEl.classList.remove("show");
