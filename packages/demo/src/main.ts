@@ -70,17 +70,15 @@ async function ensureController() {
 
 	const reg = await navigator.serviceWorker.register("./sw.js");
 
-	// Wait for the SW to take control (or timeout after 8 s).
+	// Wait for the SW to take control. With clients.claim() in the SW's
+	// activate handler this fires almost immediately on first install.
 	if (!navigator.serviceWorker.controller) {
-		await Promise.race([
-			new Promise<void>(res => {
-				navigator.serviceWorker.addEventListener("controllerchange", () => res(), { once: true });
-			}),
-			new Promise<void>(res => setTimeout(res, 8000)),
-		]);
+		await new Promise<void>(res => {
+			navigator.serviceWorker.addEventListener("controllerchange", () => res(), { once: true });
+		});
 	}
 
-	const sw = navigator.serviceWorker.controller ?? reg.active;
+	const sw = navigator.serviceWorker.controller!;
 	if (!sw) throw new Error("No active service worker");
 
 	// Use defaultConfigDev from the already-loaded scramjet.js global to avoid
