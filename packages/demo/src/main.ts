@@ -8,6 +8,7 @@ const WISP_URL = "wss://wisp.mercurywork.shop/";
 let controller: Controller | null = null;
 let frame: Frame | null = null;
 let controllerReady = false;
+let initPromise: Promise<void> | null = null;
 
 // ── Elements ──────────────────────────────────────────────────────────────────
 const homeEl     = document.getElementById("home")!;
@@ -35,11 +36,23 @@ setInterval(tick, 15_000);
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let toastTimer: ReturnType<typeof setTimeout>;
-function toast(msg: string, ms = 3500) {
+function toast(msg: string, ms = 4000) {
 	toastEl.textContent = msg;
 	toastEl.classList.add("show");
 	clearTimeout(toastTimer);
-	toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
+	if (ms > 0) toastTimer = setTimeout(() => toastEl.classList.remove("show"), ms);
+}
+function clearToast() { toastEl.classList.remove("show"); }
+
+// ── Error overlay ─────────────────────────────────────────────────────────────
+function showError(msg: string) {
+	// Show error inside the proxy iframe area so it's unmissable
+	iframe.srcdoc = `<!doctype html><html><body style="margin:0;background:#0a0a0a;display:flex;align-items:center;justify-content:center;height:100vh;font-family:system-ui;color:#ef4444;flex-direction:column;gap:12px;text-align:center;padding:20px">
+		<div style="font-size:2rem">⚠️</div>
+		<div style="font-size:1rem;font-weight:600">Proxy error</div>
+		<div style="font-size:.85rem;color:#9ca3af;max-width:380px">${msg}</div>
+		<button onclick="parent.location.reload()" style="margin-top:8px;padding:8px 18px;background:#1e1e1e;border:1px solid #333;color:#e5e7eb;border-radius:6px;cursor:pointer;font-size:.85rem">Reload page</button>
+	</body></html>`;
 }
 
 // ── URL helpers ───────────────────────────────────────────────────────────────
@@ -64,25 +77,29 @@ function showHome() {
 }
 
 // ── Controller init ───────────────────────────────────────────────────────────
-async function ensureController() {
-	if (controllerReady) return;
-	toast("Starting proxy…", 20_000);
+async function _initController() {
+	if (!("serviceWorker" in navigator)) {
+		throw new Error("Service workers are not supported in this browser.");
+	}
+
+	toast("Starting proxy…", -1); // persistent until cleared
 
 	const reg = await navigator.serviceWorker.register("./sw.js");
 
-	// Wait for the SW to take control. With clients.claim() in the SW's
-	// activate handler this fires almost immediately on first install.
+	// skipWaiting() in the SW means the new SW activates immediately.
+	// clients.claim() makes it take control of this page right away.
+	// So controllerchange fires almost instantly on first install.
 	if (!navigator.serviceWorker.controller) {
-		await new Promise<void>(res => {
-			navigator.serviceWorker.addEventListener("controllerchange", () => res(), { once: true });
+		await new Promise<void>((res, rej) => {
+			const t = setTimeout(() => rej(new Error("Service worker timed out. Try reloading the page.")), 15000);
+			navigator.serviceWorker.addEventListener("controllerchange", () => { clearTimeout(t); res(); }, { once: true });
 		});
 	}
 
 	const sw = navigator.serviceWorker.controller!;
-	if (!sw) throw new Error("No active service worker");
 
-	// Use defaultConfigDev from the already-loaded scramjet.js global to avoid
-	// bundling a second copy of scramjet that could conflict.
+	// Read defaultConfigDev from the $scramjet global set by scramjet.js
+	// (avoids bundling a second copy of scramjet that would conflict).
 	const scramjetConfig = typeof $scramjet !== "undefined" ? $scramjet.defaultConfigDev : undefined;
 
 	controller = new Controller({
@@ -90,9 +107,19 @@ async function ensureController() {
 		transport: new LibcurlClient({ wisp: WISP_URL }),
 		...(scramjetConfig ? { scramjetConfig } : {}),
 	});
+
 	await controller.wait();
 	controllerReady = true;
-	toastEl.classList.remove("show");
+	clearToast();
+}
+
+function ensureController(): Promise<void> {
+	if (controllerReady) return Promise.resolve();
+	if (!initPromise) initPromise = _initController().catch(e => {
+		initPromise = null; // allow retry on next navigate
+		throw e;
+	});
+	return initPromise;
 }
 
 // ── Navigate ──────────────────────────────────────────────────────────────────
@@ -108,8 +135,9 @@ async function navigate(raw: string) {
 		}
 		frame.go(url);
 	} catch (e) {
-		toast(`Error: ${(e as Error).message}`);
-		console.error(e);
+		const msg = (e as Error).message ?? String(e);
+		showError(msg);
+		console.error("[joshaldo]", e);
 	}
 }
 
@@ -128,5 +156,4 @@ btnFwd.addEventListener("click",    () => frame?.forward());
 btnReload.addEventListener("click", () => frame?.reload());
 btnHome.addEventListener("click",   showHome);
 
-// Auto-focus on load
 homeSearch.focus();
