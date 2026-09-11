@@ -13,7 +13,6 @@
 	},
 	"dependencies": {
 		"@mercuryworkshop/scramjet-controller": "workspace:*",
-		"@mercuryworkshop/scramjet": "workspace:*",
 		"@mercuryworkshop/libcurl-transport": "catalog:"
 	}
 }

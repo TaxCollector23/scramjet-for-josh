@@ -5,11 +5,136 @@
 		<link rel="icon" href="/icon.png" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>joshaldo</title>
+
+		<style>
+			*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+			:root {
+				--bg: #0a0a0a;
+				--surface: #111;
+				--border: #222;
+				--text: #e5e7eb;
+				--muted: #6b7280;
+				--accent: #6366f1;
+				--bar-h: 44px;
+			}
+
+			html, body { height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+
+			/* ── Home screen ── */
+			#home {
+				position: fixed; inset: 0;
+				display: flex; flex-direction: column; align-items: center; justify-content: center;
+				padding: 0 16px; z-index: 10;
+				transition: opacity .18s, transform .18s;
+			}
+			#home.gone { opacity: 0; pointer-events: none; transform: translateY(-6px); }
+
+			#clock {
+				font-size: clamp(3rem, 10vw, 5.5rem);
+				font-weight: 200; letter-spacing: -.04em;
+				line-height: 1; margin-bottom: .12em;
+				font-variant-numeric: tabular-nums;
+			}
+			#date-label {
+				font-size: .92rem; color: var(--muted);
+				margin-bottom: 2.2rem; letter-spacing: .015em;
+			}
+
+			#home-wrap { width: min(560px, 100%); position: relative; }
+			#home-wrap::before {
+				content: '🔍'; position: absolute; left: 14px; top: 50%;
+				transform: translateY(-50%); font-size: 13px;
+				pointer-events: none; filter: grayscale(1) opacity(.45);
+			}
+			#home-search {
+				width: 100%; padding: 13px 42px 13px 38px;
+				background: #151515; border: 1px solid var(--border);
+				border-radius: 10px; color: var(--text); font-size: 1rem;
+				outline: none; transition: border-color .15s, box-shadow .15s;
+			}
+			#home-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.14); }
+			#home-search::placeholder { color: var(--muted); }
+
+			/* ── Browser chrome ── */
+			#browser {
+				position: fixed; inset: 0; display: flex; flex-direction: column;
+				opacity: 0; pointer-events: none; transition: opacity .18s;
+			}
+			#browser.on { opacity: 1; pointer-events: all; }
+
+			#bar {
+				height: var(--bar-h); background: var(--surface);
+				border-bottom: 1px solid var(--border);
+				display: flex; align-items: center; gap: 3px;
+				padding: 0 6px; flex-shrink: 0;
+			}
+
+			.nb {
+				width: 30px; height: 30px; background: transparent;
+				border: none; border-radius: 6px; color: var(--muted);
+				cursor: pointer; font-size: 15px;
+				display: inline-flex; align-items: center; justify-content: center;
+				transition: background .1s, color .1s; flex-shrink: 0;
+				font-family: inherit;
+			}
+			.nb:hover { background: #1e1e1e; color: var(--text); }
+			.nb:disabled { opacity: .3; cursor: default; }
+			.nb:disabled:hover { background: transparent; color: var(--muted); }
+
+			#url-form { flex: 1; min-width: 0; }
+			#url-input {
+				width: 100%; padding: 5px 10px;
+				background: #161616; border: 1px solid var(--border);
+				border-radius: 6px; color: var(--text); font-size: .875rem;
+				outline: none; transition: border-color .15s;
+			}
+			#url-input:focus { border-color: var(--accent); }
+
+			#proxy-frame { flex: 1; border: none; background: #fff; min-height: 0; }
+
+			/* ── Toast ── */
+			#toast {
+				position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+				background: #161616; border: 1px solid var(--border);
+				color: var(--muted); font-size: .78rem;
+				padding: 6px 14px; border-radius: 20px;
+				pointer-events: none; opacity: 0; transition: opacity .2s;
+				white-space: nowrap; z-index: 999;
+			}
+			#toast.show { opacity: 1; }
+		</style>
+
 		<script src="/scramjet/scramjet.js"></script>
 		<script src="/controller/controller.api.js"></script>
 	</head>
 	<body>
-		<div id="app"></div>
+
+		<!-- Home / new-tab screen -->
+		<div id="home">
+			<div id="clock">00:00</div>
+			<div id="date-label">Loading…</div>
+			<div id="home-wrap">
+				<input id="home-search" type="text" placeholder="Search or enter address…" autocomplete="off" spellcheck="false" />
+			</div>
+		</div>
+
+		<!-- Browser chrome -->
+		<div id="browser">
+			<div id="bar">
+				<button class="nb" id="btn-back"   title="Back"    disabled>&#8592;</button>
+				<button class="nb" id="btn-fwd"    title="Forward" disabled>&#8594;</button>
+				<button class="nb" id="btn-reload" title="Reload">&#8635;</button>
+				<form id="url-form">
+					<input id="url-input" type="text" placeholder="Search or enter address…" autocomplete="off" spellcheck="false" />
+				</form>
+				<button class="nb" id="btn-home" title="New tab">&#8962;</button>
+			</div>
+			<iframe id="proxy-frame"></iframe>
+		</div>
+
+		<div id="toast"></div>
+
 		<script type="module" src="/src/main.ts"></script>
 	</body>
 </html>
